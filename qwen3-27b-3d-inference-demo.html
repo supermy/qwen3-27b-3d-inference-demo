@@ -173,8 +173,9 @@ button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);colo
     <button data-view="wt">权重</button>
     <button data-view="at">注意力</button>
     <button data-view="an">结构</button>
+    <button data-view="orb">环绕</button>
   </div>
-  <div id="hint">自动运镜 🎬：总览 → 嵌入 → 单层解剖（关键层放慢）→ 输出 → 采样<br>拖拽画面即暂停运镜 · 点击「运镜」恢复 · 空格 暂停 · → 单步</div>
+  <div id="hint">自动运镜 🎬：总览 → 嵌入 → 单层解剖（关键层放慢）→ 输出 → 采样<br>「环绕」群像巡展 · 拖拽画面即接管相机 · 空格 暂停 · → 单步</div>
 </div>
 
 <div class="card" id="logits">
@@ -660,7 +661,7 @@ drawHeat(0,-1);
 /* ================= 结构站 · Decoder 层解剖图 ================= */
 const anGroup=new THREE.Group(); anGroup.position.set(13,21,-4); anGroup.rotation.y=.3; anGroup.scale.setScalar(1.15); scene.add(anGroup);   // 右侧放大细节区
 const anBlocks=[], anFrames=[], anEdges=[];
-const MINIS={a:[],f:[]};                 // 第三级放大 · 子层内部执行细节
+const MINIS={a:[],f:[],n:[],o:[]};        // 第三级放大 · 子层内部执行细节（n=RMSNorm o=输出采样）
 let anPh=-1;
 function anatSet(ph){ anPh=ph; }
 {
@@ -741,6 +742,14 @@ function anatSet(ph){ anPh=ph; }
   arrows([-11.5,-8.5,-5.5],-16.5);
   ['① SiLU 门控','② ⊗ 门控相乘','③ 下投影'].forEach((tg,i)=>mini(7+i*3,-16.5,tg,PU,MINIS.f));
   arrows([8.5,11.5],-16.5);
+  /* ---- 第三级放大 · 其余部件 ---- */
+  edge(-10,-17.7,-10,-19.3); edge(10,-17.7,10,-19.3);
+  const tn=makeLabel('RMSNorm 内部 · 依序执行',{h:.85,color:'#5fc8b8'}); tn.position.set(-10,-19.9,0); anGroup.add(tn);
+  const to=makeLabel('输出与采样 · 依序执行',{h:.85,color:'#f0b060'}); to.position.set(10,-19.9,0); anGroup.add(to);
+  ['① 均方根 RMS','② x/rms 归一化','③ × γ 缩放'].forEach((tg,i)=>mini(-13+i*3,-21.3,tg,0x14b8a6,MINIS.n));
+  arrows([-11.5,-8.5,-5.5],-21.3);
+  ['① LM Head 投影','② Softmax 概率','③ Top-K 采样'].forEach((tg,i)=>mini(7+i*3,-21.3,tg,0xf59e0b,MINIS.o));
+  arrows([8.5,11.5],-21.3);
   { const g=makeGlow(0x22d3ee,13); g.position.set(0,1,-1.4); anGroup.add(g); }
 }
 /* 数据流光球（左 · 注意力 / 右 · FFN） */
@@ -763,7 +772,7 @@ function anUpdate(dt){
     const on=(f.side===0)?(anPh>=0&&anPh<=4):(anPh>=5);
     f.line.material.opacity+=(((on?.9:.4))-f.line.material.opacity)*Math.min(1,dt*4);
   });
-  [...MINIS.a,...MINIS.f].forEach(o=>{
+  [...MINIS.a,...MINIS.f,...MINIS.n,...MINIS.o].forEach(o=>{
     o.glow+=(o.gT-o.glow)*k;
     o.mat.emissiveIntensity=.16+o.glow*(1+Math.sin(t*6)*.25);
     const s=1+o.glow*.14; o.mesh.scale.set(s,s,1);
@@ -951,6 +960,10 @@ function updateStage(dt){
   const st=STAGES[S.stage];
   if(S.playing) S.t+=dt*S.speed;
   const p=clamp(S.t/st.dur,0,1);
+  /* L3 细节条：非前向阶段复位；输出采样条在阶段④级联、⑤保持点亮 */
+  if(S.stage!==2){ MINIS.a.forEach(o=>o.gT=0); MINIS.f.forEach(o=>o.gT=0); MINIS.n.forEach(o=>o.gT=0); }
+  const oi=(S.stage===3)?Math.min(2,Math.floor(S.t/STAGES[3].dur*3)):(S.stage>=4)?2:-1;
+  MINIS.o.forEach((o,i)=>o.gT=i<=oi?1:0);
   const pg=stagesEl.querySelectorAll('.stg')[S.stage];
   if(pg) pg.querySelector('.pg i').style.width=(p*100)+'%';
 
@@ -1001,6 +1014,9 @@ function updateStage(dt){
     MINIS.a.forEach((o,i)=>o.gT=i<=ai?1:0);
     const fi=(sub===5)?0:(sub===6)?1:(sub===7)?2:-1;
     MINIS.f.forEach((o,i)=>o.gT=i<=fi?1:0);
+    /* RMSNorm 内部：sub0（注意力侧）与 sub5（FFN 侧）前半段级联点亮，随后保持 */
+    const ni=(sub>=0&&sub<=2)?(sub===0?Math.min(2,Math.floor(fis*6)):2):(sub>=5)?(sub===5?Math.min(2,Math.floor(fis*6)):2):-1;
+    MINIS.n.forEach((o,i)=>o.gT=i<=ni?1:0);
   }
   else if(S.stage===3){
     const k=easeOC(Math.min(1,p*1.25));
@@ -1074,24 +1090,27 @@ document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click'
   document.querySelectorAll('.views button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   TOUR.on=false; TOUR.key=''; tourLabel();
   const v=b.dataset.view;
+  SPIN.on=(v==='orb');                                       // 环绕：相机绕场景群像缓慢公转
+  if(SPIN.on) return;
   if(v==='ov') orbit.flyTo(new THREE.Vector3(0,20,-4),92*PMULT(),1.28,.62);
   if(v==='wt') orbit.flyTo(new THREE.Vector3(47,14,-1),40*PMULT(),1.28,-.9);
   if(v==='at') orbit.flyTo(new THREE.Vector3(-38,18,0),27*PMULT(),1.35,.8);
-  if(v==='an') orbit.flyTo(new THREE.Vector3(13,22,-4),58*PMULT(),1.4,.5);
+  if(v==='an') orbit.flyTo(new THREE.Vector3(13,20,-4),70*PMULT(),1.4,.5);
 }));
 /* ================= 导演式自动运镜：总览 → 细节，抓取相机即接管 ================= */
 const TOUR={on:true,key:''};
+const SPIN={on:false};                                     // 环绕模式 · 群像环绕运镜
 const btnTour=$('#btnTour');
 const tourLabel=()=>btnTour.innerHTML=(TOUR.on?'🎬':'🖐')+'<i class="bl">运镜</i>';
 const TOURS={
  ov:()=>orbit.flyTo(new THREE.Vector3(0,20,-4),92*PMULT(),1.28,.62),        // 总览：塔左 · 细节右
  em:()=>orbit.flyTo(new THREE.Vector3(-18,-2,2),30*PMULT(),1.32,.55),       // 嵌入查表特写
- an:()=>orbit.flyTo(new THREE.Vector3(13,22,-4),58*PMULT(),1.4,.5),         // 单层解剖（关键层 8 步循环）
+ an:()=>orbit.flyTo(new THREE.Vector3(13,20,-4),70*PMULT(),1.4,.5),         // 单层解剖（关键层 8 步循环）
  lm:()=>orbit.flyTo(new THREE.Vector3(-18,49,0),26*PMULT(),1.25,.35),       // LM Head · logits
  sm:()=>orbit.flyTo(new THREE.Vector3(-18,50,6),32*PMULT(),1.3,.45),        // 采样 · 追加
 };
 function tour(){
-  if(!TOUR.on)return;
+  if(!TOUR.on||SPIN.on)return;
   let k='ov';
   if(S.stage===1)k='em';
   else if(S.stage===2)k=FEAT.has(layerAt(S.t).li)?'an':'ov';
@@ -1099,9 +1118,12 @@ function tour(){
   else if(S.stage===4)k='sm';
   if(k!==TOUR.key){TOUR.key=k;TOURS[k]();}
 }
-window.onGrab=()=>{ if(TOUR.on){TOUR.on=false;tourLabel();} };
+window.onGrab=()=>{
+  if(TOUR.on){TOUR.on=false;tourLabel();}
+  if(SPIN.on){SPIN.on=false; const b=document.querySelector('[data-view="orb"]'); if(b)b.classList.remove('on');}
+};
 tourLabel();
-btnTour.addEventListener('click',()=>{ TOUR.on=!TOUR.on; TOUR.key=''; tourLabel(); if(TOUR.on)tour(); });
+btnTour.addEventListener('click',()=>{ TOUR.on=!TOUR.on; TOUR.key=''; if(TOUR.on)SPIN.on=false; tourLabel(); if(TOUR.on)tour(); });
 addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); btnPlay.click(); }
   if(e.code==='ArrowRight'){ $('#btnStep').click(); }
@@ -1120,7 +1142,7 @@ rebuildStrip(false); setStage(0); updateStats();
   if(h){ TOUR.on=false; TOUR.key=''; tourLabel(); }
   if(h==='#wt'){ orbit.target.set(47,14,-1); Object.assign(orbit.s,{r:40*PMULT(),phi:1.28,theta:-.9}); orbit.apply(); }
   if(h==='#at'){ orbit.target.set(-38,18,0); Object.assign(orbit.s,{r:27*PMULT(),phi:1.35,theta:.8}); orbit.apply(); }
-  if(h==='#an'){ orbit.target.set(13,22,-4); Object.assign(orbit.s,{r:58*PMULT(),phi:1.4,theta:.5}); orbit.apply(); } }
+  if(h==='#an'){ orbit.target.set(13,20,-4); Object.assign(orbit.s,{r:70*PMULT(),phi:1.4,theta:.5}); orbit.apply(); } }
 { const qs=new URLSearchParams(location.search);
   if(qs.has('s')){ const n=clamp(Number(qs.get('s'))|0,0,5);
     S.gen=clamp(Number(qs.get('g'))|0,0,GEN.length);
@@ -1130,6 +1152,7 @@ function animate(){
   const dt=Math.min(clock.getDelta(),.05);
   tower.rotation.y+=dt*.02;
   orbit.update(dt);
+  if(SPIN.on){ orbit.s.theta+=dt*.12; orbit.s.r+=(100*PMULT()-orbit.s.r)*Math.min(1,dt*.4); orbit.apply(); }
   tour();
   updateStage(dt);
   anUpdate(dt);
