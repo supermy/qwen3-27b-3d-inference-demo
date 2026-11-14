@@ -261,11 +261,23 @@ const PH=[                         // 前向 8 阶段（n: HUD 文案 v: 解说�
 const STAGES=[
  {label:'① 分词 Tokenization',dur:2.6},
  {label:'② 嵌入 Embedding',dur:2.4},
- {label:'③ 逐层前向 · 56 Layers',dur:14},
+ {label:'③ 逐层前向 · 56 层 × 8 步',dur:0},
  {label:'④ LM Head · Logits',dur:2.6},
  {label:'⑤ 采样 · 追加 Token',dur:2.8},
  {label:'⑥ 序列完成 · EOS',dur:3.0},
 ];
+/* 严格架构时间线：每层完整执行 8 步张量循环；FEAT 关键层放慢逐帧演示 */
+const FEAT_DUR=1.9, LAYER_DUR=.5;
+const LDUR=Array.from({length:CFG.layers},(_,i)=>FEAT.has(i)?FEAT_DUR:LAYER_DUR);
+let LACC=0; const LCUM=LDUR.map(d=>LACC+=d);   // 各层累计结束时间
+const LTOTAL=LCUM[CFG.layers-1];
+STAGES[2].dur=LTOTAL;
+function layerAt(t){                            // t → {层序号, 层内进度, 步骤}
+  let li=0; while(li<CFG.layers-1&&t>LCUM[li]) li++;
+  const st=li>0?LCUM[li-1]:0;
+  const frac=clamp((t-st)/LDUR[li],0,1);
+  return {li,frac,sub:Math.min(7,Math.floor(frac*8))};
+}
 
 /* ================= 中文配音解说（Web Speech API，离线可用） ================= */
 const TTS='speechSynthesis' in window;
@@ -274,7 +286,7 @@ const btnVoice=$('#btnVoice');
 const SCRIPT=[
  '欢迎观看 Qwen3 大模型推理演示。首先，分词器把输入文本切分为 token',
  '每个 token 在嵌入层查表，转化为五千一百二十维的向量',
- '开始逐层前向传播，共五十六层，每层包含注意力与 MLP 两个子层',
+ '开始逐层前向传播。共五十六层，每一层都完整执行八步：查询、键、值三次投影，注意力计算，输出投影，再经门控、上投影、下投影完成前馈网络。第五、十七、二十九、四十一、五十三层会放慢演示完整循环',
  '前向完成。语言模型头输出全词表的 logits',
  '',   // 阶段⑤按采样结果动态生成
  '生成结束，输出结束符。这就是大模型逐 token 生成的全过程',
@@ -304,7 +316,7 @@ btnVoice.addEventListener('click',()=>{
   voiceLabel();
   if(Narr.on){
     pickVoice();
-    say(S.stage===2?PH[Math.min(7,Math.floor(S.t/STAGES[2].dur*8))].v:SCRIPT[S.stage]);
+    say(S.stage===2?PH[layerAt(S.t).sub].v:SCRIPT[S.stage]);
   }else speechSynthesis.cancel();
 });
 
@@ -870,7 +882,7 @@ function enterStage(i){
     orbGroup.visible=false; strMat.opacity=.8; S.lastLayer=-1; S.heatRow=-1;
     wave.visible=true; waveGlow.visible=true;
     drawHeat(0,-1);
-    phaseChip.textContent='逐层前向 · 每层 = 注意力 + MLP（残差 + RMSNorm）';
+    phaseChip.textContent='逐层前向 · 每层完整执行 8 步循环：QKV → 注意力 → W_o → 门控/上/下投影';
     say(SCRIPT[2]);
   }
   if(i===3){
@@ -916,15 +928,15 @@ function updateStage(dt){
     embedMat.emissiveIntensity=.4+Math.sin(p*Math.PI)*1.6;
   }
   else if(S.stage===2){
-    const y0=embedTop+.3, y1=lastY+1.6;
-    const y=lerp(y0,y1,easeIO(p));
+    /* 严格架构：波面逐层推进，每层完整执行 8 步张量循环，关键层放慢 */
+    const {li,frac,sub}=layerAt(S.t);
+    const y=lerp(embedTop+.3, lastY+1.6, clamp(S.t/LTOTAL,0,1));
     wave.position.y=y; waveGlow.position.set(0,y,0);
     /* 数据流 */
     const arr=strGeo.attributes.position.array, spd=strGeo.userData.spd, topY=strGeo.userData.topY;
     for(let k=0;k<STR_N;k++){ arr[k*3+1]+=spd[k]*dt*S.speed*.55; if(arr[k*3+1]>topY) arr[k*3+1]=embedY; }
     strGeo.attributes.position.needsUpdate=true;
-    /* 层点亮 */
-    const li=clamp(Math.floor((y-firstY)/T.pitch),0,CFG.layers-1);
+    /* 层点亮：进入该层即点亮（关键层脉冲环） */
     if(li>S.lastLayer){
       for(let k=S.lastLayer+1;k<=li;k++){ layers[k].energy=1;
         if(FEAT.has(k)){ spawnRing(layers[k].y); }
@@ -932,21 +944,22 @@ function updateStage(dt){
       S.lastLayer=li;
     }
     stLayer.textContent=(li+1)+' / '+CFG.layers;
-    /* 张量阶段 */
-    const ph=Math.min(7,Math.floor(p*8));
-    if(ph!==S.lastPhase){
-      S.lastPhase=ph;
-      const hi=FHEAT[Math.floor(p*5)%5];
-      drawHeat(hi,ph===3?0:-1); S.heatHead=hi;
-      say(PH[ph].v);
-      anatSet(ph);
+    /* 层内 8 步循环 */
+    const key=li*8+sub;
+    if(key!==S.lastPhase){
+      S.lastPhase=key; S.heatHead=FHEAT[li%5];
+      drawHeat(S.heatHead, sub===3?0:-1); S.heatRow=sub===3?0:-1;
+      anatSet(sub);
+      if(FEAT.has(li)&&(sub===3||sub===5)) say(PH[sub].v);
     }
-    const hr=ph===3?Math.floor(p*12): -1;
-    if(ph===3&&hr!==S.heatRow){ drawHeat(S.heatHead,hr); S.heatRow=hr; }
+    if(sub===3){
+      const hr=Math.floor(frac*8*12)%12;
+      if(hr!==S.heatRow){ drawHeat(S.heatHead,hr); S.heatRow=hr; }
+    }
     clusters.forEach(c=>c.active=0);
-    const ac=PH[ph].c; if(ac>=0) clusters[ac].active=1;
-    const meta=PH[ph];
-    phaseChip.textContent=`第 ${li+1}/56 层 · ${meta.n} ${meta.s}`+(ph===3?` · Head ${S.heatHead+1}/8`:'');
+    const ac=PH[sub].c; if(ac>=0) clusters[ac].active=1;
+    const meta=PH[sub];
+    phaseChip.textContent=`第 ${li+1}/${CFG.layers} 层 · 步骤 ${sub+1}/8 ${meta.n} ${meta.s}`+(sub===3?` · Head ${(S.heatHead+1)}/8`:'');
   }
   else if(S.stage===3){
     const k=easeOC(Math.min(1,p*1.25));
@@ -1042,7 +1055,7 @@ rebuildStrip(false); setStage(0); updateStats();
 { const qs=new URLSearchParams(location.search);
   if(qs.has('s')){ const n=clamp(Number(qs.get('s'))|0,0,5);
     S.gen=clamp(Number(qs.get('g'))|0,0,GEN.length);
-    rebuildStrip(false); setStage(n); S.t=STAGES[n].dur*0.55; } }
+    rebuildStrip(false); setStage(n); S.t=Number(qs.get('t'))||STAGES[n].dur*0.55; } }
 function animate(){
   requestAnimationFrame(animate);
   const dt=Math.min(clock.getDelta(),.05);
