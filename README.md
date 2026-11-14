@@ -1,0 +1,72 @@
+# Qwen3-27B · 权重与推理过程 3D 可视化
+
+用 **Three.js** 实时演示 Qwen3 系列大模型的权重结构与自回归推理全过程。单文件、零依赖、离线可用——双击 `qwen3-27b-3d-inference-demo.html` 即可在浏览器中打开。
+
+![demo](https://img.shields.io/badge/Three.js-r160-0593ff) ![license](https://img.shields.io/badge/license-MIT-green) ![size](https://img.shields.io/badge/单文件-0.9MB-orange)
+
+## ✨ 特性
+
+- **单文件自包含**：three.js r160 以 base64 内嵌，无需安装任何依赖，无网络也能运行（另备 jsDelivr / unpkg / npmmirror CDN 兜底）
+- **完整推理链路动画**：分词 → 嵌入 → 56 层前向 → LM Head → 采样 → EOS，自动循环播放
+- **三大 3D 场景**：
+  - **模型塔**：56 层 Decoder 垂直堆叠，注意力子层（青）与 MLP 子层（紫）分层着色，前向波面逐层点亮并产生脉冲环，塔内粒子模拟数据流
+  - **权重站**：W_q / W_k / W_v / W_o / W_gate / W_up / W_down 七个张量点云（约 3.5 万实例），蓝粉双色映射权重大小，前向时按 QKV → Attn → SwiGLU 顺序轮流高亮
+  - **注意力站**：GQA（40 Q 头 → 8 KV 组）因果注意力热力图，逐行扫描、逐头切换，首列注意力 sink 清晰可见
+- **采样可视化**：Top-5 候选概率条、3D logits 立柱、命中高亮、token 光球飞回序列
+- **专业 HUD**：参数配置、序列长度 / 已生成 / KV Cache 用量 / 当前层实时统计、阶段进度条
+- **自由交互**：轨道相机（拖拽旋转 / 滚轮缩放 / 右键平移）、视角预设、播放控制、变速、单步、阶段跳转
+
+## 🚀 使用
+
+```bash
+# 方式一：直接双击打开
+open qwen3-27b-3d-inference-demo.html
+
+# 方式二：本地服务
+python3 -m http.server 8899
+# 访问 http://localhost:8899/qwen3-27b-3d-inference-demo.html
+```
+
+需要支持 WebGL 的现代浏览器（Chrome / Edge / Firefox）。
+
+### 深链参数
+
+| 参数 | 说明 |
+|---|---|
+| `#wt` | 打开即定位到权重视角 |
+| `#at` | 打开即定位到注意力视角 |
+| `?s=2&g=1` | 跳转到指定阶段（0-5），`g` 指定已生成 token 数 |
+
+### 快捷键
+
+| 按键 | 功能 |
+|---|---|
+| `空格` | 暂停 / 播放 |
+| `→` | 单步下一阶段 |
+
+## 🎬 演示阶段
+
+| 阶段 | 动画内容 |
+|---|---|
+| ① 分词 | 输入「你好，请介绍一下你自己。」逐个弹出 token 芯片 |
+| ② 嵌入 | token 光球升入 Embedding 查表层（151,936 × 5120） |
+| ③ 逐层前向 | 扫描波沿塔体上升，逐层点亮；权重张量按 QKV → Attn → SwiGLU 顺序高亮；注意力热力图逐行扫描 |
+| ④ LM Head | 塔顶 logits 立柱生长，Top-5 候选卡片弹出 |
+| ⑤ 采样 | Softmax 命中高亮，token 光球飞回序列追加，自回归循环，KV Cache 随之增长 |
+| ⑥ EOS | 序列完成特效后重开下一轮 |
+
+## ⚠️ 说明
+
+Qwen3 官方产品线并无 27B 版本。本页采用基于 Qwen3 系列公开规格推算的**示意配置**（56 层 · d_model 5120 · GQA 40Q/8KV · SwiGLU · RMSNorm · vocab 151,936 · ≈27B），权重数值为程序生成的演示数据，仅用于教学演示，不代表真实模型权重。
+
+## 🛠️ 技术要点
+
+- 纯 Three.js r160（ES Module，base64 内嵌 + Blob URL 动态导入）
+- `InstancedMesh` 批量渲染约 3.5 万个权重立方体，仅 7 次 draw call
+- CanvasTexture 动态绘制注意力热力图
+- 自实现轨道控制器（鼠标 / 触摸捏合），无第三方依赖
+- 序列化状态机驱动六阶段时间线，支持变速 / 单步 / 跳转
+
+## License
+
+MIT

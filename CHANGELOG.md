@@ -1,0 +1,28 @@
+# Changelog
+
+本项目的所有重要变更都记录在此文件中。
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
+
+## [Unreleased]
+
+## [1.0.0] - 2026-11-15
+
+### Added
+
+- 首个版本发布：Qwen3-27B（示意配置）权重与推理过程 3D 可视化演示
+- 单文件自包含：three.js r160 以 base64 内嵌，离线可用，另备 jsDelivr / unpkg / npmmirror CDN 兜底
+- 六阶段推理动画时间线：分词 → 嵌入 → 逐层前向（56 层）→ LM Head → 采样 → EOS，自动循环
+- 模型塔场景：注意力 / MLP 子层着色，前向扫描波面、逐层脉冲环、塔内数据流粒子
+- 权重站场景：7 个权重张量点云（InstancedMesh 约 3.5 万实例），蓝粉双色映射，按前向阶段轮流高亮
+- 注意力站场景：GQA（40Q → 8KV）因果注意力热力图，逐行扫描、逐头切换
+- LM Head / 采样：Top-5 候选概率卡片、3D logits 立柱、命中高亮、token 光球飞回序列
+- HUD：模型配置、序列长度 / 已生成 / KV Cache / 当前层实时统计、阶段进度
+- 交互：轨道相机（旋转 / 缩放 / 平移）、三视角预设、播放 / 暂停 / 单步 / 重置、0.4–2.5× 变速、阶段跳转
+- 快捷键：空格暂停 / 播放、→ 单步
+- 深链支持：`#wt` / `#at` 直达权重 / 注意力视角，`?s=阶段&g=已生成数` 跳转指定状态
+- 无 WebGL 环境的降级错误提示
+
+[Unreleased]: https://github.com/example/qwen3-27b-3d-inference-demo/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/example/qwen3-27b-3d-inference-demo/releases/tag/v1.0.0
