@@ -359,7 +359,7 @@ const ptC=new THREE.PointLight(0x38e1ff,110,120); ptC.position.set(34,18,14); sc
 class Orbit{
   constructor(cam,dom){
     this.cam=cam; this.dom=dom;
-    this.target=new THREE.Vector3(2,21,0);
+    this.target=new THREE.Vector3(0,20,-4);
     this.s={r:92,phi:1.28,theta:.62};
     this.tween=null; this.pointers=new Map(); this.pinchD=0;
     dom.addEventListener('pointerdown',e=>{
@@ -452,7 +452,7 @@ function wcol(v,out){ v=clamp(v,-1,1);
   return out; }
 
 /* ================= 模型塔 ================= */
-const tower=new THREE.Group(); scene.add(tower);
+const tower=new THREE.Group(); tower.position.x=-18; scene.add(tower);   // 主模型置于画面左侧
 const T={pitch:.92,slabH:.62,w:9.2,d:4.6};
 const embedY=-6, embedTop=embedY+.5, firstY=embedTop+.62;
 const lastY=firstY+(CFG.layers-1)*T.pitch, normY=lastY+1.05, lmY=normY+1.15, barsY=lmY+2.6;
@@ -542,7 +542,7 @@ const orbs=[];
 }
 
 /* ================= 权重站 ================= */
-const wtGroup=new THREE.Group(); wtGroup.position.set(0,0,0); scene.add(wtGroup);
+const wtGroup=new THREE.Group(); wtGroup.position.set(14,0,0); scene.add(wtGroup);
 const WT=[
  {k:'W_q',   s:'5120×5120',   dims:[20,20,14]},
  {k:'W_k',   s:'5120×1024',   dims:[20,8,14]},
@@ -582,7 +582,7 @@ WT.forEach((def,i)=>{
 });
 
 /* ================= 注意力站 ================= */
-const atGroup=new THREE.Group(); atGroup.position.set(-30,18,0); atGroup.rotation.y=.85; scene.add(atGroup);
+const atGroup=new THREE.Group(); atGroup.position.set(-38,18,0); atGroup.rotation.y=.85; scene.add(atGroup);
 const heatCanvas=document.createElement('canvas'); heatCanvas.width=heatCanvas.height=480;
 const heatTex=new THREE.CanvasTexture(heatCanvas); heatTex.colorSpace=THREE.SRGBColorSpace;
 /* 预生成 8 个头的注意力分布 */
@@ -652,7 +652,7 @@ drawHeat(0,-1);
 }
 
 /* ================= 结构站 · Decoder 层解剖图 ================= */
-const anGroup=new THREE.Group(); anGroup.position.set(0,21,-52); anGroup.rotation.y=.14; scene.add(anGroup);
+const anGroup=new THREE.Group(); anGroup.position.set(13,21,-4); anGroup.rotation.y=.3; anGroup.scale.setScalar(1.15); scene.add(anGroup);   // 右侧放大细节区
 const anBlocks=[], anFrames=[], anEdges=[];
 let anPh=-1;
 function anatSet(ph){ anPh=ph; }
@@ -700,6 +700,10 @@ function anatSet(ph){ anPh=ph; }
   edge(-10,1.7,-10,3.2); edge(-10,5.8,-10,7.3); edge(-10,9.1,-10,10.2);
   /* ---- 右列 · FFN 子层 (SwiGLU) ---- */
   frame(4.9,-11.4,15.2,12.6,PU,1,'FFN 子层 · SwiGLU');
+  const subA=makeLabel('Q·K·V 投影 → 多头注意力 → 输出投影 + 残差',{h:.92,color:'#67c9dd'});
+  subA.position.set(-10,14.5,.35); anGroup.add(subA);
+  const subF=makeLabel('RMSNorm → 门控 SiLU⊗ → 上 / 下投影 + 残差',{h:.92,color:'#a99bf0'});
+  subF.position.set(10,14.5,.35); anGroup.add(subF);
   plate(5.4,1.2,GD,10,-8.6,'RMSNorm',-1,.95);
   plate(6.2,1.7,PU,10,-5.2,'W_gate [5120×27648]',5,.92);
   plate(6.2,1.7,PU,10,-2.2,'W_up [5120×27648]',6,.92);
@@ -711,8 +715,8 @@ function anatSet(ph){ anPh=ph; }
   /* ---- 输入 ---- */
   const inLb=makeLabel('x · [seq, 5120]',{h:1.1,color:'#6d84b8'}); inLb.position.set(0,-13.4,0); anGroup.add(inLb);
   edge(0,-12.6,-10,-9.25); edge(0,-12.6,10,-9.25);
-  const title=makeLabel('Decoder 层 ×56 · 每层 = 注意力 + FFN（残差 + RMSNorm）',{h:1.7,color:'#9fc6ff'});
-  title.position.set(0,15,0); anGroup.add(title);
+  const title=makeLabel('Decoder 层 ×56 · 每层完整循环 8 步（放慢层：5/17/29/41/53）',{h:1.55,color:'#9fc6ff'});
+  title.position.set(0,17.3,0); anGroup.add(title);
   { const g=makeGlow(0x22d3ee,13); g.position.set(0,1,-1.4); anGroup.add(g); }
 }
 /* 数据流光球（左 · 注意力 / 右 · FFN） */
@@ -1029,10 +1033,10 @@ $('#speed').addEventListener('input',e=>{ S.speed=Number(e.target.value); $('#sp
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.views button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   const v=b.dataset.view;
-  if(v==='ov') orbit.flyTo(new THREE.Vector3(2,21,0),92*PMULT(),1.28,.62);
-  if(v==='wt') orbit.flyTo(new THREE.Vector3(33,14,0),40*PMULT(),1.28,-.9);
-  if(v==='at') orbit.flyTo(new THREE.Vector3(-30,18,0),27*PMULT(),1.35,.8);
-  if(v==='an') orbit.flyTo(new THREE.Vector3(0,21,-52),56*PMULT(),1.4,.42);
+  if(v==='ov') orbit.flyTo(new THREE.Vector3(0,20,-4),92*PMULT(),1.28,.62);
+  if(v==='wt') orbit.flyTo(new THREE.Vector3(47,14,-1),40*PMULT(),1.28,-.9);
+  if(v==='at') orbit.flyTo(new THREE.Vector3(-38,18,0),27*PMULT(),1.35,.8);
+  if(v==='an') orbit.flyTo(new THREE.Vector3(13,22,-4),58*PMULT(),1.4,.5);
 }));
 addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); btnPlay.click(); }
@@ -1049,9 +1053,9 @@ addEventListener('resize',()=>{
 const clock=new THREE.Clock();
 rebuildStrip(false); setStage(0); updateStats();
 { const h=location.hash;
-  if(h==='#wt'){ orbit.target.set(33,14,0); Object.assign(orbit.s,{r:40*PMULT(),phi:1.28,theta:-.9}); orbit.apply(); }
-  if(h==='#at'){ orbit.target.set(-30,18,0); Object.assign(orbit.s,{r:27*PMULT(),phi:1.35,theta:.8}); orbit.apply(); }
-  if(h==='#an'){ orbit.target.set(0,21,-52); Object.assign(orbit.s,{r:56*PMULT(),phi:1.4,theta:.42}); orbit.apply(); } }
+  if(h==='#wt'){ orbit.target.set(47,14,-1); Object.assign(orbit.s,{r:40*PMULT(),phi:1.28,theta:-.9}); orbit.apply(); }
+  if(h==='#at'){ orbit.target.set(-38,18,0); Object.assign(orbit.s,{r:27*PMULT(),phi:1.35,theta:.8}); orbit.apply(); }
+  if(h==='#an'){ orbit.target.set(13,22,-4); Object.assign(orbit.s,{r:58*PMULT(),phi:1.4,theta:.5}); orbit.apply(); } }
 { const qs=new URLSearchParams(location.search);
   if(qs.has('s')){ const n=clamp(Number(qs.get('s'))|0,0,5);
     S.gen=clamp(Number(qs.get('g'))|0,0,GEN.length);
