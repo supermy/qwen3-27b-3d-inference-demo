@@ -29,7 +29,7 @@ html,body{height:100%;overflow:hidden;background:#05060f;color:#dfe6ff;overscrol
   border:1px solid rgba(255,200,87,.25);border-radius:8px;padding:7px 10px;min-height:32px;line-height:1.5}
 /* ---- top-right controls ---- */
 #ctrl{top:16px;right:16px;width:240px}
-#ctrl .row{display:flex;gap:8px;margin-bottom:9px;align-items:center}
+#ctrl .row{display:flex;gap:8px;margin-bottom:9px;align-items:center;flex-wrap:wrap}
 #ctrl .row:last-child{margin-bottom:0}
 button{cursor:pointer;font-family:inherit;font-size:12px;color:#dfe6ff;
   background:rgba(70,90,190,.20);border:1px solid rgba(126,150,255,.28);border-radius:9px;
@@ -38,6 +38,7 @@ button:hover{background:rgba(90,115,230,.32);border-color:rgba(150,175,255,.5)}
 button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);color:#7ce8ff}
 #ctrl label{font-size:11px;color:#8fa0c8;display:flex;align-items:center;gap:8px;flex:1}
 #ctrl input[type=range]{flex:1;accent-color:#38e1ff}
+#ctrl .bl{font-style:normal;margin-left:4px}
 #spdV{color:#7ce8ff;width:34px;text-align:right;font-variant-numeric:tabular-nums}
 .views button{flex:1;padding:6px 4px}
 #hint{font-size:10px;color:#6d7ea6;margin-top:10px;line-height:1.7}
@@ -99,9 +100,8 @@ button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);colo
   button{white-space:nowrap}
   #hint{display:none}
   #stages{left:10px;right:10px;width:auto;bottom:calc(86px + env(safe-area-inset-bottom));
-    flex-direction:row;overflow-x:auto;gap:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  #stages::-webkit-scrollbar{display:none}
-  .stg{flex:none;padding:5px 9px}.stg .nm{font-size:11px}
+    flex-direction:row;flex-wrap:wrap;gap:5px}
+  .stg{flex:none;padding:4px 7px}.stg .nm{font-size:10px}
   #tokens{left:10px;right:10px;transform:none;max-width:none;bottom:calc(8px + env(safe-area-inset-bottom))}
   #tokRow{max-width:none;flex:1;gap:4px}
   .tchip{font-size:11px;padding:2px 6px;white-space:nowrap}
@@ -122,10 +122,10 @@ button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);colo
   .views button{padding:5px 2px;white-space:nowrap;font-size:10px}
   #hint{display:none}
   #stages{left:10px;right:10px;bottom:calc(100px + env(safe-area-inset-bottom));width:auto;
-    flex-direction:row;overflow-x:auto;gap:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
-  #stages::-webkit-scrollbar{display:none}
-  .stg{flex:none;padding:6px 9px;border-radius:8px;gap:6px}
-  .stg .nm{font-size:11px}
+    flex-direction:row;flex-wrap:wrap;gap:5px}
+  .stg{flex:none;padding:5px 8px;border-radius:8px;gap:5px}
+  .stg .nm{font-size:10px}
+  #ctrl .bl{display:none}
   #tokens{bottom:calc(8px + env(safe-area-inset-bottom));left:10px;right:10px;transform:none;
     max-width:none;padding:8px 10px;gap:7px;border-radius:11px}
   #tokRow{max-width:none;flex:1;gap:4px}
@@ -157,9 +157,10 @@ button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);colo
 
 <div class="card" id="ctrl">
   <div class="row">
-    <button id="btnPlay">⏸ 暂停</button>
-    <button id="btnStep">单步 ⏭</button>
-    <button id="btnRestart">↺ 重置</button>
+    <button id="btnPlay">⏸<i class="bl">暂停</i></button>
+    <button id="btnVoice">🔊<i class="bl">解说</i></button>
+    <button id="btnStep">⏭<i class="bl">单步</i></button>
+    <button id="btnRestart">↺<i class="bl">重置</i></button>
   </div>
   <div class="row"><label>速度 <input id="speed" type="range" min="0.4" max="2.5" step="0.1" value="1"><span id="spdV">1.0×</span></label></div>
   <div class="row views">
@@ -246,15 +247,15 @@ const GEN=[
 ];
 const FEAT=new Set([4,16,28,40,52]);
 const FHEAT=[0,3,1,5,2];          // 各章节展示的注意力头
-const PH=[                         // 前向 8 阶段
- {n:'W_q · Query 投影',s:'[5120 × 5120]',c:0},
- {n:'W_k · Key 投影 (GQA)',s:'[5120 × 1024]',c:1},
- {n:'W_v · Value 投影 (GQA)',s:'[5120 × 1024]',c:2},
- {n:'Attention · softmax(QKᵀ/√d)·V',s:'12×12 因果掩码',c:-1},
- {n:'W_o · 输出投影',s:'[5120 × 5120]',c:3},
- {n:'W_gate · SwiGLU 门控',s:'[5120 × 27648]',c:4},
- {n:'W_up · 上投影',s:'[5120 × 27648]',c:5},
- {n:'W_down · 下投影',s:'[27648 × 5120]',c:6},
+const PH=[                         // 前向 8 阶段（n: HUD 文案 v: 解说词）
+ {n:'W_q · Query 投影',s:'[5120 × 5120]',c:0,v:'查询投影 W Q'},
+ {n:'W_k · Key 投影 (GQA)',s:'[5120 × 1024]',c:1,v:'键投影 W K，八个 KV 组共享'},
+ {n:'W_v · Value 投影 (GQA)',s:'[5120 × 1024]',c:2,v:'值投影 W V'},
+ {n:'Attention · softmax(QKᵀ/√d)·V',s:'12×12 因果掩码',c:-1,v:'注意力计算，因果掩码，加权求和'},
+ {n:'W_o · 输出投影',s:'[5120 × 5120]',c:3,v:'输出投影 W O，汇聚多头结果'},
+ {n:'W_gate · SwiGLU 门控',s:'[5120 × 27648]',c:4,v:'进入 MLP，SwiGLU 门控激活'},
+ {n:'W_up · 上投影',s:'[5120 × 27648]',c:5,v:'上投影到两万七千六百四十八维'},
+ {n:'W_down · 下投影',s:'[27648 × 5120]',c:6,v:'再下投影回五千一百二十维'},
 ];
 const STAGES=[
  {label:'① 分词 Tokenization',dur:2.6},
@@ -264,6 +265,47 @@ const STAGES=[
  {label:'⑤ 采样 · 追加 Token',dur:2.8},
  {label:'⑥ 序列完成 · EOS',dur:3.0},
 ];
+
+/* ================= 中文配音解说（Web Speech API，离线可用） ================= */
+const TTS='speechSynthesis' in window;
+const Narr={on:false,voice:null};
+const btnVoice=$('#btnVoice');
+const SCRIPT=[
+ '欢迎观看 Qwen3 大模型推理演示。首先，分词器把输入文本切分为 token',
+ '每个 token 在嵌入层查表，转化为五千一百二十维的向量',
+ '开始逐层前向传播，共五十六层，每层包含注意力与 MLP 两个子层',
+ '前向完成。语言模型头输出全词表的 logits',
+ '',   // 阶段⑤按采样结果动态生成
+ '生成结束，输出结束符。这就是大模型逐 token 生成的全过程',
+];
+function pickVoice(){ if(!TTS)return;
+  const vs=speechSynthesis.getVoices();
+  Narr.voice=vs.find(v=>/^zh/i.test(v.lang)&&/Ting|Xiaoxiao|Xiaoyi|Yaoyao|Huihui|Lili|Meijia|Yunxi|Kangkana/i.test(v.name))
+    ||vs.find(v=>/^zh/i.test(v.lang))||null;
+}
+if(TTS){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+function say(t){
+  if(!TTS||!Narr.on||!t)return;
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(t);
+  if(Narr.voice)u.voice=Narr.voice;
+  u.lang='zh-CN'; u.rate=1.05; u.volume=1;
+  speechSynthesis.speak(u);
+}
+function voiceLabel(){ btnVoice.innerHTML=(Narr.on?'🔊':'🔇')+'<i class="bl">解说</i>'; }
+try{ Narr.on=localStorage.getItem('q3demo-voice')==='1'; }catch(e){}
+voiceLabel();
+if(!TTS){ btnVoice.style.opacity=.4; btnVoice.title='当前环境不支持语音合成'; }
+btnVoice.addEventListener('click',()=>{
+  if(!TTS)return;
+  Narr.on=!Narr.on;
+  try{ localStorage.setItem('q3demo-voice',Narr.on?'1':'0'); }catch(e){}
+  voiceLabel();
+  if(Narr.on){
+    pickVoice();
+    say(S.stage===2?PH[Math.min(7,Math.floor(S.t/STAGES[2].dur*8))].v:SCRIPT[S.stage]);
+  }else speechSynthesis.cancel();
+});
 
 /* ================= 渲染器 / 场景 ================= */
 const canvas=$('#gl');
@@ -721,11 +763,13 @@ function enterStage(i){
   wave.visible=false; waveGlow.visible=false;
   if(i===0){
     rebuildStrip(true); phaseChip.textContent='分词器 · BPE 将文本切为 token';
+    say(SCRIPT[0]);
     orbGroup.visible=true;
     orbs.forEach(o=>{ o.material.opacity=.95; o.position.y=-9.6; });
   }
   if(i===1){
     phaseChip.textContent='Embedding 查表 · 151,936 行中取出各 token 向量';
+    say(SCRIPT[1]);
     orbGroup.visible=true;
   }
   if(i===2){
@@ -733,16 +777,19 @@ function enterStage(i){
     wave.visible=true; waveGlow.visible=true;
     drawHeat(0,-1);
     phaseChip.textContent='逐层前向 · 每层 = 注意力 + MLP（残差 + RMSNorm）';
+    say(SCRIPT[2]);
   }
   if(i===3){
     strMat.opacity=.25; wave.visible=true; waveGlow.visible=true; wave.position.y=lmY;
     barsReset(g); showLogits(g); markWin(-1);
     phaseChip.textContent=`LM Head · [5120 × 151,936] · 得到全词表 logits`;
+    say(SCRIPT[3]);
   }
   if(i===4){
     logitsCard.classList.add('show');
     if(!lrows.children.length){ barsReset(g); showLogits(g); }
     phaseChip.textContent=`Softmax 采样 · 命中「${g.token}」 · 追加到序列`;
+    say(`按温度零点七、top-p 零点九采样，命中「${g.token}」，追加到序列`);
     markWin(0);
   }
   if(i===5){
@@ -750,6 +797,7 @@ function enterStage(i){
     strMat.opacity=0;
     spawnBurst();
     phaseChip.textContent=`序列完成 · 输出 <eos> · 本轮 ${PROMPT.length+S.gen} token（回到分词重新开始）`;
+    say(SCRIPT[5]);
   }
   updateStats();
 }
@@ -796,6 +844,7 @@ function updateStage(dt){
       S.lastPhase=ph;
       const hi=FHEAT[Math.floor(p*5)%5];
       drawHeat(hi,ph===3?0:-1); S.heatHead=hi;
+      say(PH[ph].v);
     }
     const hr=ph===3?Math.floor(p*12): -1;
     if(ph===3&&hr!==S.heatRow){ drawHeat(S.heatHead,hr); S.heatRow=hr; }
@@ -864,9 +913,10 @@ function decay(dt){
 /* ================= 交互 ================= */
 const btnPlay=$('#btnPlay');
 btnPlay.addEventListener('click',()=>{ S.playing=!S.playing;
-  btnPlay.textContent=S.playing?'⏸ 暂停':'▶ 播放'; });
-$('#btnStep').addEventListener('click',()=>{ S.playing=false; btnPlay.textContent='▶ 播放'; setStage(nextOf()); });
-$('#btnRestart').addEventListener('click',()=>{ S.gen=0; S.playing=true; btnPlay.textContent='⏸ 暂停'; rebuildStrip(false); setStage(0); });
+  btnPlay.innerHTML=S.playing?'⏸<i class="bl">暂停</i>':'▶<i class="bl">播放</i>';
+  if(!S.playing&&TTS)speechSynthesis.cancel(); });
+$('#btnStep').addEventListener('click',()=>{ S.playing=false; btnPlay.innerHTML='▶<i class="bl">播放</i>'; setStage(nextOf()); });
+$('#btnRestart').addEventListener('click',()=>{ S.gen=0; S.playing=true; btnPlay.innerHTML='⏸<i class="bl">暂停</i>'; rebuildStrip(false); setStage(0); });
 $('#speed').addEventListener('input',e=>{ S.speed=Number(e.target.value); $('#spdV').textContent=S.speed.toFixed(1)+'×'; });
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.views button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
