@@ -2,13 +2,14 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
 <title>Qwen3-27B · 权重与推理过程 3D 演示</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden;background:#05060f;color:#dfe6ff;
+html,body{height:100%;overflow:hidden;background:#05060f;color:#dfe6ff;overscroll-behavior:none;
+  -webkit-tap-highlight-color:transparent;
   font-family:system-ui,-apple-system,'PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif}
-#gl{position:fixed;inset:0;display:block}
+#gl{position:fixed;inset:0;display:block;touch-action:none}
 .card{position:fixed;background:rgba(9,12,26,.74);border:1px solid rgba(126,150,255,.16);
   border-radius:14px;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
   padding:14px 16px;z-index:10;box-shadow:0 8px 30px rgba(0,0,0,.35)}
@@ -88,6 +89,53 @@ button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);colo
 #fatal h2{color:#ff8a8a;font-size:16px;margin-bottom:10px}
 #fatal p{font-size:13px;color:#c9b8b8;line-height:1.7}
 @media (max-width:900px){#top{width:330px}#logits{display:none}#legend{display:none}#ctrl{width:210px}}
+/* ---- 平板 / 手机横屏（矮视口） ---- */
+@media (max-height:520px){
+  #top{width:300px;padding:9px 12px}
+  #top .sub{display:none}
+  .stats{margin-top:6px}.stats div{padding:4px 5px}.stats b{font-size:12px}.stats i{font-size:9px}
+  #phaseChip{margin-top:6px;min-height:24px;font-size:11px;padding:5px 8px}
+  #ctrl{padding:8px 10px}#ctrl .row{margin-bottom:6px}
+  button{white-space:nowrap}
+  #hint{display:none}
+  #stages{left:10px;right:10px;width:auto;bottom:calc(86px + env(safe-area-inset-bottom));
+    flex-direction:row;overflow-x:auto;gap:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  #stages::-webkit-scrollbar{display:none}
+  .stg{flex:none;padding:5px 9px}.stg .nm{font-size:11px}
+  #tokens{left:10px;right:10px;transform:none;max-width:none;bottom:calc(8px + env(safe-area-inset-bottom))}
+  #tokRow{max-width:none;flex:1;gap:4px}
+  .tchip{font-size:11px;padding:2px 6px;white-space:nowrap}
+}
+/* ---- 手机 ---- */
+@media (max-width:768px){
+  .card{border-radius:11px;padding:9px 11px}
+  #top{top:10px;left:10px;width:min(236px,calc(100vw - 158px))}
+  #top h1{font-size:14px}
+  #top h1 span,#top .sub,#top .cfg{display:none}
+  .stats{gap:5px;margin-top:7px}
+  .stats div{padding:5px 3px;border-radius:7px}
+  .stats b{font-size:12px}.stats i{font-size:9px}
+  #phaseChip{margin-top:7px;font-size:11px;padding:6px 8px;min-height:26px}
+  #ctrl{top:10px;right:10px;width:142px;padding:9px 10px}
+  #ctrl .row{gap:5px;margin-bottom:7px}
+  button{font-size:11px;padding:5px 7px;border-radius:7px}
+  .views button{padding:5px 2px;white-space:nowrap;font-size:10px}
+  #hint{display:none}
+  #stages{left:10px;right:10px;bottom:calc(100px + env(safe-area-inset-bottom));width:auto;
+    flex-direction:row;overflow-x:auto;gap:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  #stages::-webkit-scrollbar{display:none}
+  .stg{flex:none;padding:6px 9px;border-radius:8px;gap:6px}
+  .stg .nm{font-size:11px}
+  #tokens{bottom:calc(8px + env(safe-area-inset-bottom));left:10px;right:10px;transform:none;
+    max-width:none;padding:8px 10px;gap:7px;border-radius:11px}
+  #tokRow{max-width:none;flex:1;gap:4px}
+  .tchip{font-size:11px;padding:2px 6px;white-space:nowrap}
+  #tokMeta{font-size:10px}
+}
+@media (max-width:480px){
+  #top{width:calc(100vw - 152px)}
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+}
 </style>
 </head>
 <body>
@@ -219,13 +267,15 @@ const STAGES=[
 
 /* ================= 渲染器 / 场景 ================= */
 const canvas=$('#gl');
-const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+const MOBILE=matchMedia('(pointer:coarse)').matches||Math.min(innerWidth,innerHeight)<640;
+const PORTRAIT=()=>innerHeight>innerWidth;
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,MOBILE?1.6:2));
 renderer.setSize(innerWidth,innerHeight);
 const scene=new THREE.Scene();
 scene.background=new THREE.Color(0x05060f);
 scene.fog=new THREE.Fog(0x05060f,90,320);
-const camera=new THREE.PerspectiveCamera(46,innerWidth/innerHeight,.1,600);
+const camera=new THREE.PerspectiveCamera(PORTRAIT()?56:46,innerWidth/innerHeight,.1,600);
 
 scene.add(new THREE.HemisphereLight(0x33406e,0x05060f,1.0));
 const dl=new THREE.DirectionalLight(0xbcd0ff,.85); dl.position.set(40,80,30); scene.add(dl);
@@ -234,7 +284,7 @@ const ptC=new THREE.PointLight(0x38e1ff,110,120); ptC.position.set(34,18,14); sc
 
 /* 星空 */
 {
-  const n=1500,pos=new Float32Array(n*3);
+  const n=MOBILE?900:1500,pos=new Float32Array(n*3);
   for(let i=0;i<n;i++){
     const r=140+Math.random()*160, th=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
     pos[i*3]=r*Math.sin(ph)*Math.cos(th); pos[i*3+1]=r*Math.cos(ph)*.6+20; pos[i*3+2]=r*Math.sin(ph)*Math.sin(th);
@@ -313,6 +363,7 @@ class Orbit{
   }
 }
 const orbit=new Orbit(camera,renderer.domElement);
+if(PORTRAIT()) orbit.s.r*=1.4;   // 竖屏时拉远相机保证塔体完整
 
 /* ================= 通用工具 ================= */
 function makeLabel(text,{fs=42,color='#bfe3ff',bold=600,h=1.5}={}){
@@ -400,7 +451,7 @@ wave.rotation.x=-Math.PI/2; wave.visible=false; tower.add(wave);
 const waveGlow=makeGlow(0x38e1ff,10); waveGlow.visible=false; tower.add(waveGlow);
 
 /* 塔内数据流 */
-const STR_N=900;
+const STR_N=MOBILE?520:900;
 const strGeo=new THREE.BufferGeometry();
 {
   const pos=new Float32Array(STR_N*3), col=new Float32Array(STR_N*3), spd=new Float32Array(STR_N);
@@ -820,16 +871,18 @@ $('#speed').addEventListener('input',e=>{ S.speed=Number(e.target.value); $('#sp
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.views button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   const v=b.dataset.view;
-  if(v==='ov') orbit.flyTo(new THREE.Vector3(2,21,0),92,1.28,.62);
-  if(v==='wt') orbit.flyTo(new THREE.Vector3(33,14,0),40,1.28,-.9);
-  if(v==='at') orbit.flyTo(new THREE.Vector3(-30,18,0),27,1.35,.8);
+  if(v==='ov') orbit.flyTo(new THREE.Vector3(2,21,0),92*PORTRAIT(),1.28,.62);
+  if(v==='wt') orbit.flyTo(new THREE.Vector3(33,14,0),40*PORTRAIT(),1.28,-.9);
+  if(v==='at') orbit.flyTo(new THREE.Vector3(-30,18,0),27*PORTRAIT(),1.35,.8);
 }));
 addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); btnPlay.click(); }
   if(e.code==='ArrowRight'){ $('#btnStep').click(); }
 });
 addEventListener('resize',()=>{
-  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  camera.aspect=innerWidth/innerHeight;
+  camera.fov=PORTRAIT()?56:46;
+  camera.updateProjectionMatrix();
   renderer.setSize(innerWidth,innerHeight);
 });
 
@@ -837,8 +890,8 @@ addEventListener('resize',()=>{
 const clock=new THREE.Clock();
 rebuildStrip(false); setStage(0); updateStats();
 { const h=location.hash;
-  if(h==='#wt'){ orbit.target.set(33,14,0); Object.assign(orbit.s,{r:40,phi:1.28,theta:-.9}); orbit.apply(); }
-  if(h==='#at'){ orbit.target.set(-30,18,0); Object.assign(orbit.s,{r:27,phi:1.35,theta:.8}); orbit.apply(); } }
+  if(h==='#wt'){ orbit.target.set(33,14,0); Object.assign(orbit.s,{r:40*PORTRAIT(),phi:1.28,theta:-.9}); orbit.apply(); }
+  if(h==='#at'){ orbit.target.set(-30,18,0); Object.assign(orbit.s,{r:27*PORTRAIT(),phi:1.35,theta:.8}); orbit.apply(); } }
 { const qs=new URLSearchParams(location.search);
   if(qs.has('s')){ const n=clamp(Number(qs.get('s'))|0,0,5);
     S.gen=clamp(Number(qs.get('g'))|0,0,GEN.length);
