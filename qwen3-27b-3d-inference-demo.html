@@ -119,7 +119,7 @@ button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);colo
   #ctrl{top:10px;right:10px;width:142px;padding:9px 10px}
   #ctrl .row{gap:5px;margin-bottom:7px}
   button{font-size:11px;padding:5px 7px;border-radius:7px}
-  .views button{padding:5px 2px;white-space:nowrap;font-size:10px}
+  .views button{padding:5px 1px;white-space:nowrap;font-size:9px}
   #hint{display:none}
   #stages{left:10px;right:10px;bottom:calc(100px + env(safe-area-inset-bottom));width:auto;
     flex-direction:row;flex-wrap:wrap;gap:5px}
@@ -167,6 +167,7 @@ button.on{background:rgba(56,225,255,.16);border-color:rgba(56,225,255,.55);colo
     <button data-view="ov" class="on">总览</button>
     <button data-view="wt">权重</button>
     <button data-view="at">注意力</button>
+    <button data-view="an">结构</button>
   </div>
   <div id="hint">拖拽 旋转 · 滚轮 缩放 · 右键拖动 平移<br>空格 暂停/播放 · → 单步 · 点击左侧阶段可跳转</div>
 </div>
@@ -311,6 +312,7 @@ btnVoice.addEventListener('click',()=>{
 const canvas=$('#gl');
 const MOBILE=matchMedia('(pointer:coarse)').matches||Math.min(innerWidth,innerHeight)<640;
 const PORTRAIT=()=>innerHeight>innerWidth;
+const PMULT=()=>PORTRAIT()?1.4:1;   // 视口半径倍率：竖屏拉远
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,MOBILE?1.6:2));
 renderer.setSize(innerWidth,innerHeight);
@@ -637,6 +639,97 @@ drawHeat(0,-1);
   { const g=makeGlow(0x22d3ee,9); g.position.set(0,0,-.6); atGroup.add(g); }
 }
 
+/* ================= 结构站 · Decoder 层解剖图 ================= */
+const anGroup=new THREE.Group(); anGroup.position.set(0,21,-52); anGroup.rotation.y=.14; scene.add(anGroup);
+const anBlocks=[], anFrames=[], anEdges=[];
+let anPh=-1;
+function anatSet(ph){ anPh=ph; }
+{
+  const CY=0x22d3ee, PU=0x8b7bff, WA=0x3f7dff, GD=0x0e7490;
+  function plate(w,h,c,x,y,tag,ph,fs){
+    const mat=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.25,transparent:true,opacity:.93,roughness:.42});
+    const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,.6),mat); m.position.set(x,y,0); anGroup.add(m);
+    const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,.6)),
+      new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.7})); e.position.set(x,y,0); anGroup.add(e);
+    const lb=makeLabel(tag,{h:fs||1.05,color:'#d7e9ff'}); lb.position.set(x,y+h/2+1,0); anGroup.add(lb);
+    const b={mesh:m,edge:e,mat,baseY:y,ph,glow:0};
+    anBlocks.push(b); return b;
+  }
+  function edge(x1,y1,x2,y2){
+    const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,y1,0),new THREE.Vector3(x2,y2,0)]);
+    const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:0x6ee7ff,transparent:true,opacity:.3}));
+    anGroup.add(l); anEdges.push(l); return l;
+  }
+  function frame(x1,y1,x2,y2,c,side,tag){
+    const pts=[new THREE.Vector3(x1,y1,.35),new THREE.Vector3(x2,y1,.35),new THREE.Vector3(x2,y2,.35),
+      new THREE.Vector3(x1,y2,.35),new THREE.Vector3(x1,y1,.35)];
+    const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
+      new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.4}));
+    anGroup.add(l); anFrames.push({line:l,side});
+    const lb=makeLabel(tag,{h:1.35,color:'#'+c.toString(16).padStart(6,'0')}); lb.position.set((x1+x2)/2,y2+1.2,.35); anGroup.add(lb);
+  }
+  function res(x,y,c,side){
+    const m=new THREE.Mesh(new THREE.SphereGeometry(.78,18,14),
+      new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.3,roughness:.4}));
+    m.position.set(x,y,0); anGroup.add(m);
+    const lb=makeLabel('⊕ 残差',{h:.95,color:'#9fb8d8'}); lb.position.set(x,y+1.6,0); anGroup.add(lb);
+    anBlocks.push({mesh:m,edge:null,mat:m.material,baseY:y,ph:side==='a'?'a':'f',glow:0,noEdge:true});
+  }
+  /* ---- 左列 · 注意力子层 ---- */
+  frame(-15.2,-11.4,-4.9,12.6,CY,0,'注意力子层 · Attention (GQA)');
+  plate(5.4,1.2,GD,-10,-8.6,'RMSNorm',-1,.95);
+  plate(6.2,1.7,WA,-10,-5.2,'W_q [5120×5120]',0);
+  plate(6.2,1.7,WA,-10,-2.2,'W_k [5120×1024]',1,.95);
+  plate(6.2,1.7,WA,-10,.8,'W_v [5120×1024]',2,.95);
+  plate(8.8,2.4,CY,-10,4.5,'多头注意力 · 40Q → 8KV',3,1.1);
+  plate(6.2,1.7,WA,-10,8.2,'W_o [5120×5120]',4);
+  res(-10,11.1,CY,'a');
+  edge(-10,-8,-10,-6.1); edge(-10,-4.3,-10,-3.1); edge(-10,-1.3,-10,-.1);
+  edge(-10,1.7,-10,3.2); edge(-10,5.8,-10,7.3); edge(-10,9.1,-10,10.2);
+  /* ---- 右列 · FFN 子层 (SwiGLU) ---- */
+  frame(4.9,-11.4,15.2,12.6,PU,1,'FFN 子层 · SwiGLU');
+  plate(5.4,1.2,GD,10,-8.6,'RMSNorm',-1,.95);
+  plate(6.2,1.7,PU,10,-5.2,'W_gate [5120×27648]',5,.92);
+  plate(6.2,1.7,PU,10,-2.2,'W_up [5120×27648]',6,.92);
+  plate(5.2,1.5,0xc084fc,10,.9,'SiLU ⊗ 门控',-1,1);
+  plate(6.2,1.7,PU,10,4.6,'W_down [27648×5120]',7,.92);
+  res(10,8.2,PU,'f');
+  edge(10,-8,10,-6.1); edge(10,-4.3,10,-3.1); edge(10,-1.3,10,.1);
+  edge(10,1.7,10,3.7); edge(10,5.5,10,7.3);
+  /* ---- 输入 ---- */
+  const inLb=makeLabel('x · [seq, 5120]',{h:1.1,color:'#6d84b8'}); inLb.position.set(0,-13.4,0); anGroup.add(inLb);
+  edge(0,-12.6,-10,-9.25); edge(0,-12.6,10,-9.25);
+  const title=makeLabel('Decoder 层 ×56 · 每层 = 注意力 + FFN（残差 + RMSNorm）',{h:1.7,color:'#9fc6ff'});
+  title.position.set(0,15,0); anGroup.add(title);
+  { const g=makeGlow(0x22d3ee,13); g.position.set(0,1,-1.4); anGroup.add(g); }
+}
+/* 数据流光球（左 · 注意力 / 右 · FFN） */
+const pkA=new THREE.Mesh(new THREE.SphereGeometry(.34,10,8),
+  new THREE.MeshBasicMaterial({color:0x8ff0ff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+pkA.position.set(-10,-8.6,.8); anGroup.add(pkA);
+const pkF=new THREE.Mesh(new THREE.SphereGeometry(.34,10,8),
+  new THREE.MeshBasicMaterial({color:0xd0b0ff,transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+pkF.position.set(10,-8.6,.8); anGroup.add(pkF);
+function anUpdate(dt){
+  const t=performance.now()/1000, k=Math.min(1,dt*6);
+  anBlocks.forEach(b=>{
+    const on=(b.ph===anPh)||(b.ph==='a'&&anPh>=0&&anPh<=4)||(b.ph==='f'&&anPh>=5);
+    b.glow+=((on?1:0)-b.glow)*k;
+    b.mat.emissiveIntensity=.25+b.glow*(1.1+Math.sin(t*6)*.3);
+    const s=1+b.glow*.08; b.mesh.scale.set(s,s,1);
+    if(b.edge) b.edge.material.opacity=.55+b.glow*.45;
+  });
+  anFrames.forEach(f=>{
+    const on=(f.side===0)?(anPh>=0&&anPh<=4):(anPh>=5);
+    f.line.material.opacity+=(((on?.9:.4))-f.line.material.opacity)*Math.min(1,dt*4);
+  });
+  [[pkA,0,4,-8.6,11.1],[pkF,5,7,-8.6,8.2]].forEach(([m,lo,hi,y0,y1])=>{
+    const on=anPh>=lo&&anPh<=hi;
+    m.material.opacity+=((on?.9:0)-m.material.opacity)*Math.min(1,dt*5);
+    if(m.material.opacity>.05){ const kk=(t*.4)%1; m.position.y=y0+(y1-y0)*kk; }
+  });
+}
+
 /* ================= Logits 立柱 ================= */
 const bars=[];
 {
@@ -759,6 +852,7 @@ function setStage(i){
   stagesEl.querySelectorAll('.stg').forEach(d=>d.classList.toggle('act',Number(d.dataset.i)===i));
 }
 function enterStage(i){
+  anatSet(-1);
   const gi=Math.min(S.gen,GEN.length-1), g=GEN[gi];
   wave.visible=false; waveGlow.visible=false;
   if(i===0){
@@ -845,6 +939,7 @@ function updateStage(dt){
       const hi=FHEAT[Math.floor(p*5)%5];
       drawHeat(hi,ph===3?0:-1); S.heatHead=hi;
       say(PH[ph].v);
+      anatSet(ph);
     }
     const hr=ph===3?Math.floor(p*12): -1;
     if(ph===3&&hr!==S.heatRow){ drawHeat(S.heatHead,hr); S.heatRow=hr; }
@@ -921,9 +1016,10 @@ $('#speed').addEventListener('input',e=>{ S.speed=Number(e.target.value); $('#sp
 document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click',()=>{
   document.querySelectorAll('.views button').forEach(x=>x.classList.remove('on')); b.classList.add('on');
   const v=b.dataset.view;
-  if(v==='ov') orbit.flyTo(new THREE.Vector3(2,21,0),92*PORTRAIT(),1.28,.62);
-  if(v==='wt') orbit.flyTo(new THREE.Vector3(33,14,0),40*PORTRAIT(),1.28,-.9);
-  if(v==='at') orbit.flyTo(new THREE.Vector3(-30,18,0),27*PORTRAIT(),1.35,.8);
+  if(v==='ov') orbit.flyTo(new THREE.Vector3(2,21,0),92*PMULT(),1.28,.62);
+  if(v==='wt') orbit.flyTo(new THREE.Vector3(33,14,0),40*PMULT(),1.28,-.9);
+  if(v==='at') orbit.flyTo(new THREE.Vector3(-30,18,0),27*PMULT(),1.35,.8);
+  if(v==='an') orbit.flyTo(new THREE.Vector3(0,21,-52),56*PMULT(),1.4,.42);
 }));
 addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); btnPlay.click(); }
@@ -940,8 +1036,9 @@ addEventListener('resize',()=>{
 const clock=new THREE.Clock();
 rebuildStrip(false); setStage(0); updateStats();
 { const h=location.hash;
-  if(h==='#wt'){ orbit.target.set(33,14,0); Object.assign(orbit.s,{r:40*PORTRAIT(),phi:1.28,theta:-.9}); orbit.apply(); }
-  if(h==='#at'){ orbit.target.set(-30,18,0); Object.assign(orbit.s,{r:27*PORTRAIT(),phi:1.35,theta:.8}); orbit.apply(); } }
+  if(h==='#wt'){ orbit.target.set(33,14,0); Object.assign(orbit.s,{r:40*PMULT(),phi:1.28,theta:-.9}); orbit.apply(); }
+  if(h==='#at'){ orbit.target.set(-30,18,0); Object.assign(orbit.s,{r:27*PMULT(),phi:1.35,theta:.8}); orbit.apply(); }
+  if(h==='#an'){ orbit.target.set(0,21,-52); Object.assign(orbit.s,{r:56*PMULT(),phi:1.4,theta:.42}); orbit.apply(); } }
 { const qs=new URLSearchParams(location.search);
   if(qs.has('s')){ const n=clamp(Number(qs.get('s'))|0,0,5);
     S.gen=clamp(Number(qs.get('g'))|0,0,GEN.length);
@@ -952,6 +1049,7 @@ function animate(){
   tower.rotation.y+=dt*.02;
   orbit.update(dt);
   updateStage(dt);
+  anUpdate(dt);
   decay(dt);
   fxUpdate(dt);
   renderer.render(scene,camera);
