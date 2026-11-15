@@ -553,7 +553,7 @@ const orbs=[];
 }
 
 /* ================= 权重站 ================= */
-const wtGroup=new THREE.Group(); wtGroup.position.set(-12,0,-30); scene.add(wtGroup);
+const wtGroup=new THREE.Group(); wtGroup.position.set(-14,0,-30); wtGroup.rotation.y=-.3; scene.add(wtGroup);
 const WT=[
  {k:'W_q',   s:'5120×5120',   dims:[20,20,14]},
  {k:'W_k',   s:'5120×1024',   dims:[20,8,14]},
@@ -587,8 +587,8 @@ WT.forEach((def,i)=>{
   im.instanceMatrix.needsUpdate=true; im.instanceColor.needsUpdate=true;
   g.add(im);
   const glow=makeGlow(0x38e1ff,7); glow.material.opacity=0; g.add(glow);
-  const lb=makeLabel(def.k,{h:1.15,color:'#a8c6ff'}); lb.position.y=ny*gap/2+1.6+(i%2)*1.2; g.add(lb);
-  const dl=makeLabel(def.s,{h:.62,color:'#7f9bd0'}); dl.position.y=-(ny*gap/2)-1.05; g.add(dl);
+  const lb=makeLabel(def.k,{h:1.45,color:'#a8c6ff'}); lb.position.y=ny*gap/2+1.6+(i%2)*1.2; g.add(lb);
+  const dl=makeLabel(def.s,{h:.85,color:'#7f9bd0'}); dl.position.y=-(ny*gap/2)-1.05; g.add(dl);
   wtGroup.add(g);
   clusters.push({g,im,vals,glow,baseY:cy,lift:0,rot:(i%2?1:-1)*.12,active:0});
 });
@@ -654,17 +654,17 @@ drawHeat(0,-1);
     k.position.set(-5.2+(r+.5)*cell,-5.9,.1);
     atGroup.add(k);
   }
-  const t1=makeLabel('Attention · GQA 40Q → 8KV',{h:1.3,color:'#8ff0ff'});
+  const t1=makeLabel('Attention · GQA 40Q → 8KV',{h:1.6,color:'#8ff0ff'});
   t1.position.set(0,7.1,0); atGroup.add(t1);
-  const t2=makeLabel('Q · 行', {h:1.1,color:'#b7a6ff'}); t2.position.set(-7.8,6.2,.1); atGroup.add(t2);
-  const t3=makeLabel('K · 列',{h:1.1,color:'#8ff0ff'}); t3.position.set(-7.9,-6.4,.1); atGroup.add(t3);
-  const t4=makeLabel('因果掩码 Causal Mask',{h:1.1,color:'#6d84b8'});
+  const t2=makeLabel('Q · 行', {h:1.3,color:'#b7a6ff'}); t2.position.set(-7.8,6.2,.1); atGroup.add(t2);
+  const t3=makeLabel('K · 列',{h:1.3,color:'#8ff0ff'}); t3.position.set(-7.9,-6.4,.1); atGroup.add(t3);
+  const t4=makeLabel('因果掩码 Causal Mask',{h:1.3,color:'#6d84b8'});
   t4.position.set(1.6,-8.2,.1); atGroup.add(t4);
   { const g=makeGlow(0x22d3ee,9); g.position.set(0,0,-.6); atGroup.add(g); }
 }
 
 /* ================= 结构站 · Decoder 层解剖图 ================= */
-const anGroup=new THREE.Group(); anGroup.position.set(26,21,14); anGroup.rotation.y=.5; anGroup.scale.setScalar(1.02); scene.add(anGroup);   // 圆周右前 · 细节放大区
+const anGroup=new THREE.Group(); anGroup.position.set(26,21,14); anGroup.rotation.y=.5; anGroup.scale.setScalar(.9); scene.add(anGroup);   // 圆周右前 · 细节放大区
 const anBlocks=[], anFrames=[], anEdges=[];
 const MINIS={a:[],f:[],n:[],o:[]};        // 第三级放大 · 子层内部执行细节（n=RMSNorm o=输出采样）
 let anPh=-1;
@@ -676,7 +676,7 @@ function anatSet(ph){ anPh=ph; }
     const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,.6),mat); m.position.set(x,y,0); anGroup.add(m);
     const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(w,h,.6)),
       new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.7})); e.position.set(x,y,0); anGroup.add(e);
-    const lb=makeLabel(tag,{h:fs||1.05,color:'#d7e9ff'}); lb.position.set(x,y+h/2+1,0); anGroup.add(lb);
+    const lb=makeLabel(tag,{h:fs||1.3,color:'#d7e9ff'}); lb.position.set(x,y+h/2+1,0); anGroup.add(lb);
     const b={mesh:m,edge:e,mat,baseY:y,ph,glow:0};
     anBlocks.push(b); return b;
   }
@@ -691,55 +691,57 @@ function anatSet(ph){ anPh=ph; }
     const l=new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts),
       new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.4}));
     anGroup.add(l); anFrames.push({line:l,side});
-    const lb=makeLabel(tag,{h:1.35,color:'#'+c.toString(16).padStart(6,'0')}); lb.position.set((x1+x2)/2,y2+1.2,.35); anGroup.add(lb);
+    const lb=makeLabel(tag,{h:1.55,color:'#'+c.toString(16).padStart(6,'0')}); lb.position.set((x1+x2)/2,y2+1.2,.35); anGroup.add(lb);
   }
   function res(x,y,c,side){
     const m=new THREE.Mesh(new THREE.SphereGeometry(.78,18,14),
       new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.3,roughness:.4}));
     m.position.set(x,y,0); anGroup.add(m);
-    const lb=makeLabel('⊕ 残差',{h:.95,color:'#9fb8d8'}); lb.position.set(x,y+1.6,0); anGroup.add(lb);
+    const lb=makeLabel('⊕ 残差',{h:1.15,color:'#9fb8d8'}); lb.position.set(x,y+1.6,0); anGroup.add(lb);
     anBlocks.push({mesh:m,edge:null,mat:m.material,baseY:y,ph:side==='a'?'a':'f',glow:0,noEdge:true});
   }
   /* ---- 左列 · 注意力子层 ---- */
   frame(-15.2,-11.4,-4.9,12.6,CY,0,'注意力子层 · Attention (GQA)');
   plate(5.4,1.2,GD,-10,-8.6,'RMSNorm',-1,.95);
-  plate(6.2,1.7,WA,-10,-5.2,'W_q [5120×5120]',0);
-  plate(6.2,1.7,WA,-10,-2.2,'W_k [5120×1024]',1,.95);
-  plate(6.2,1.7,WA,-10,.8,'W_v [5120×1024]',2,.95);
-  plate(8.8,2.4,CY,-10,4.5,'多头注意力 · 40Q → 8KV',3,1.1);
-  plate(6.2,1.7,WA,-10,8.2,'W_o [5120×5120]',4);
+  plate(6.2,1.7,WA,-10,-5.2,'W_q [5120×5120]',0,1.25);
+  plate(6.2,1.7,WA,-10,-2.2,'W_k [5120×1024]',1,1.25);
+  plate(6.2,1.7,WA,-10,.8,'W_v [5120×1024]',2,1.25);
+  plate(8.8,2.4,CY,-10,4.5,'多头注意力 · 40Q → 8KV',3,1.35);
+  plate(6.2,1.7,WA,-10,8.2,'W_o [5120×5120]',4,1.25);
   res(-10,11.1,CY,'a');
   edge(-10,-8,-10,-6.1); edge(-10,-4.3,-10,-3.1); edge(-10,-1.3,-10,-.1);
   edge(-10,1.7,-10,3.2); edge(-10,5.8,-10,7.3); edge(-10,9.1,-10,10.2);
   /* ---- 右列 · FFN 子层 (SwiGLU) ---- */
   frame(4.9,-11.4,15.2,12.6,PU,1,'FFN 子层 · SwiGLU');
-  const subA=makeLabel('Q·K·V 投影 → 多头注意力 → 输出投影 + 残差',{h:.92,color:'#67c9dd'});
+  const subA=makeLabel('Q·K·V 投影 → 多头注意力 → 输出投影 + 残差',{h:1.1,color:'#67c9dd'});
   subA.position.set(-10,14.5,.35); anGroup.add(subA);
-  const subF=makeLabel('RMSNorm → 门控 SiLU⊗ → 上 / 下投影 + 残差',{h:.92,color:'#a99bf0'});
+  const subF=makeLabel('RMSNorm → 门控 SiLU⊗ → 上 / 下投影 + 残差',{h:1.1,color:'#a99bf0'});
   subF.position.set(10,14.5,.35); anGroup.add(subF);
-  plate(5.4,1.2,GD,10,-8.6,'RMSNorm',-1,.95);
-  plate(6.2,1.7,PU,10,-5.2,'W_gate [5120×27648]',5,.92);
-  plate(6.2,1.7,PU,10,-2.2,'W_up [5120×27648]',6,.92);
-  plate(5.2,1.5,0xc084fc,10,.9,'SiLU ⊗ 门控',-1,1);
-  plate(6.2,1.7,PU,10,4.6,'W_down [27648×5120]',7,.92);
+  plate(5.4,1.2,GD,10,-8.6,'RMSNorm',-1,1.2);
+  plate(6.2,1.7,PU,10,-5.2,'W_gate [5120×27648]',5,1.2);
+  plate(6.2,1.7,PU,10,-2.2,'W_up [5120×27648]',6,1.2);
+  plate(5.2,1.5,0xc084fc,10,.9,'SiLU ⊗ 门控',-1,1.25);
+  plate(6.2,1.7,PU,10,4.6,'W_down [27648×5120]',7,1.2);
   res(10,8.2,PU,'f');
   edge(10,-8,10,-6.1); edge(10,-4.3,10,-3.1); edge(10,-1.3,10,.1);
   edge(10,1.7,10,3.7); edge(10,5.5,10,7.3);
   /* ---- 输入 ---- */
-  const inLb=makeLabel('x · [seq, 5120]',{h:1.1,color:'#6d84b8'}); inLb.position.set(0,-13.4,0); anGroup.add(inLb);
+  const inLb=makeLabel('x · [seq, 5120]',{h:1.3,color:'#6d84b8'}); inLb.position.set(0,-13.4,0); anGroup.add(inLb);
   edge(0,-12.6,-10,-9.25); edge(0,-12.6,10,-9.25);
-  const title=makeLabel('Decoder 层 ×56 · 每层完整循环 8 步（放慢层：5/17/29/41/53）',{h:1.55,color:'#9fc6ff'});
-  title.position.set(0,17.3,0); anGroup.add(title);
+  const title=makeLabel('Decoder 层 ×56 · 每层完整循环 8 步',{h:1.8,color:'#9fc6ff'});
+  title.position.set(0,18.4,0); anGroup.add(title);
+  const title2=makeLabel('放慢层：5 / 17 / 29 / 41 / 53',{h:1.2,color:'#7d93c4'});
+  title2.position.set(0,16.9,0); anGroup.add(title2);
   /* ---- 第三级放大 · 子层内部执行细节（自左向右依序点亮） ---- */
   edge(-10,-11.4,-10,-14.1); edge(10,-11.4,10,-14.1);
-  const ta=makeLabel('注意力内部 · 依序执行',{h:.85,color:'#67c9dd'}); ta.position.set(-10,-14.9,0); anGroup.add(ta);
-  const tf=makeLabel('FFN 内部 · 依序执行',{h:.85,color:'#a99bf0'}); tf.position.set(10,-14.9,0); anGroup.add(tf);
+  const ta=makeLabel('注意力内部 · 依序执行',{h:1.05,color:'#67c9dd'}); ta.position.set(-10,-14.9,0); anGroup.add(ta);
+  const tf=makeLabel('FFN 内部 · 依序执行',{h:1.05,color:'#a99bf0'}); tf.position.set(10,-14.9,0); anGroup.add(tf);
   function mini(x,y,tag,c,arr){
     const mat=new THREE.MeshStandardMaterial({color:c,emissive:c,emissiveIntensity:.16,transparent:true,opacity:.93,roughness:.42});
     const m=new THREE.Mesh(new THREE.BoxGeometry(2.7,1.35,.5),mat); m.position.set(x,y,0); anGroup.add(m);
     const e=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(2.7,1.35,.5)),
       new THREE.LineBasicMaterial({color:c,transparent:true,opacity:.45})); e.position.set(x,y,0); anGroup.add(e);
-    const lb=makeLabel(tag,{h:.62,color:'#d7e9ff'}); lb.position.set(x,y+.95,0); anGroup.add(lb);
+    const lb=makeLabel(tag,{h:.85,color:'#d7e9ff'}); lb.position.set(x,y+.95,0); anGroup.add(lb);
     arr.push({mesh:m,edge:e,mat,glow:0,gT:0});
   }
   function arrows(xs,y){ xs.forEach(x=>{ const a=makeLabel('→',{h:.75,color:'#5f7fae'}); a.position.set(x,y,0); anGroup.add(a); }); }
@@ -1098,9 +1100,9 @@ document.querySelectorAll('.views button').forEach(b=>b.addEventListener('click'
   SPIN.on=(v==='orb');                                       // 环绕：相机绕场景群像缓慢公转
   if(SPIN.on) return;
   if(v==='ov') orbit.flyTo(new THREE.Vector3(0,18,-2),96*PMULT(),1.28,.62);
-  if(v==='wt') orbit.flyTo(new THREE.Vector3(-12,17,-29.5),34*PMULT(),1.35,0);
-  if(v==='at') orbit.flyTo(new THREE.Vector3(-26,18,14),36*PMULT(),1.35,-1.08);
-  if(v==='an') orbit.flyTo(new THREE.Vector3(26,19,14),60*PMULT(),1.35,1.08);
+  if(v==='wt') orbit.flyTo(new THREE.Vector3(-14,17,-29.5),36*PMULT(),1.35,-.5);
+  if(v==='at') orbit.flyTo(new THREE.Vector3(-26,18,14),30*PMULT(),1.35,-1.08);
+  if(v==='an') orbit.flyTo(new THREE.Vector3(26,19,14),44*PMULT(),1.35,1.08);
 }));
 /* ================= 导演式自动运镜：总览 → 细节，抓取相机即接管 ================= */
 const TOUR={on:true,key:''};
@@ -1110,7 +1112,7 @@ const tourLabel=()=>btnTour.innerHTML=(TOUR.on?'🎬':'🖐')+'<i class="bl">运
 const TOURS={
  ov:()=>orbit.flyTo(new THREE.Vector3(0,18,-2),96*PMULT(),1.28,.62),        // 总览：圆周群像
  em:()=>orbit.flyTo(new THREE.Vector3(0,-2,2),30*PMULT(),1.32,.55),         // 嵌入查表特写（塔底）
- an:()=>orbit.flyTo(new THREE.Vector3(26,19,14),60*PMULT(),1.35,1.08),      // 单层解剖（关键层 8 步循环）
+ an:()=>orbit.flyTo(new THREE.Vector3(26,19,14),44*PMULT(),1.35,1.08),      // 单层解剖（关键层 8 步循环）
  lm:()=>orbit.flyTo(new THREE.Vector3(0,49,0),26*PMULT(),1.25,.35),         // LM Head · logits
  sm:()=>orbit.flyTo(new THREE.Vector3(0,50,6),32*PMULT(),1.3,.45),          // 采样 · 追加
 };
@@ -1146,9 +1148,9 @@ const clock=new THREE.Clock();
 rebuildStrip(false); setStage(0); updateStats();
 { const h=location.hash;
   if(h){ TOUR.on=false; TOUR.key=''; tourLabel(); }
-  if(h==='#wt'){ orbit.target.set(-12,17,-29.5); Object.assign(orbit.s,{r:34*PMULT(),phi:1.35,theta:0}); orbit.apply(); }
-  if(h==='#at'){ orbit.target.set(-26,18,14); Object.assign(orbit.s,{r:36*PMULT(),phi:1.35,theta:-1.08}); orbit.apply(); }
-  if(h==='#an'){ orbit.target.set(26,19,14); Object.assign(orbit.s,{r:60*PMULT(),phi:1.35,theta:1.08}); orbit.apply(); } }
+  if(h==='#wt'){ orbit.target.set(-14,17,-29.5); Object.assign(orbit.s,{r:36*PMULT(),phi:1.35,theta:-.5}); orbit.apply(); }
+  if(h==='#at'){ orbit.target.set(-26,18,14); Object.assign(orbit.s,{r:30*PMULT(),phi:1.35,theta:-1.08}); orbit.apply(); }
+  if(h==='#an'){ orbit.target.set(26,19,14); Object.assign(orbit.s,{r:44*PMULT(),phi:1.35,theta:1.08}); orbit.apply(); } }
 { const qs=new URLSearchParams(location.search);
   if(qs.has('s')){ const n=clamp(Number(qs.get('s'))|0,0,5);
     S.gen=clamp(Number(qs.get('g'))|0,0,GEN.length);
