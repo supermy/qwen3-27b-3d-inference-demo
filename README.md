@@ -4,6 +4,9 @@
 
 ![demo](https://img.shields.io/badge/Three.js-r160-0593ff) ![license](https://img.shields.io/badge/license-MIT-green) ![size](https://img.shields.io/badge/单文件-0.9MB-orange)
 
+> **🌐 在线演示**：<https://supermy.github.io/qwen3-27b-3d-inference-demo/qwen3-27b-3d-inference-demo.html>
+> 手机访问体验最佳（竖屏圆周布局 + 导演运镜）；`#wt` `#at` `#an` 深链可直达权重 / 注意力 / 解剖特写。
+
 ## ✨ 特性
 
 - **单文件自包含**：three.js r160 以 base64 内嵌，无需安装任何依赖，无网络也能运行（另备 jsDelivr / unpkg / npmmirror CDN 兜底）
